@@ -21,32 +21,20 @@ pipeline {
       }
     }
 
-    stage('Terraform Validate') {
+    stage('Terraform Destroy') {
       steps {
-        sh 'terraform validate'
-      }
-    }
-
-    stage('Terraform Plan') {
-      steps {
-        sh 'terraform plan -out=tfplan'
-      }
-    }
-
-    stage('Terraform Apply') {
-      steps {
-        input message: 'Approve deployment?'
-        sh 'terraform apply tfplan'
+        input message: 'Confirm destroy of budget alert?'
+        sh 'terraform destroy -auto-approve'
       }
     }
   }
 
   post {
     success {
-      echo '✅ Budget alert deployed successfully!'
+      echo '🧹 Budget alert destroyed successfully!'
     }
     failure {
-      echo '❌ Deployment failed.'
+      echo '⚠️ Destroy failed.'
     }
   }
 }
