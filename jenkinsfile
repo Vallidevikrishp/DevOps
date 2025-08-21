@@ -1,0 +1,48 @@
+pipeline {
+    agent any
+
+    environment {
+        SONAR_TOKEN = credentials('sonar-token-id')
+        MAVEN_HOME = tool 'Maven'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git url: 'git@github.com:your-org/your-repo.git', branch: 'main'
+            }
+        }
+
+        stage('Code Quality - SonarQube') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh "${MAVEN_HOME}/bin/mvn sonar:sonar -Dsonar.login=${SONAR_TOKEN}"
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 2, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        stage('Build WAR') {
+            steps {
+                sh "${MAVEN_HOME}/bin/mvn clean package"
+            }
+        }
+
+        stage('Deploy to Tomcat') {
+            steps {
+                ansiblePlaybook(
+                    playbook: 'ansible/deploy.yml',
+                    inventory: 'ansible/hosts',
+                    credentialsId: 'ansible-ssh-key'
+                )
+            }
+        }
+    }
+}

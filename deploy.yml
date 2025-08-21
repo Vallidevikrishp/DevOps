@@ -1,0 +1,20 @@
+- name: Deploy WAR to Tomcat
+  hosts: tomcat
+  tasks:
+    - name: Stop Tomcat
+      become: true
+      systemd:
+        name: tomcat
+        state: stopped
+
+    - name: Copy WAR file
+      copy:
+        src: /var/lib/jenkins/workspace/your-job/target/your-app.war
+        dest: /opt/tomcat/webapps/your-app.war
+        mode: '0644'
+
+    - name: Start Tomcat
+      become: true
+      systemd:
+        name: tomcat
+        state: started
