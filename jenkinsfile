@@ -1,48 +1,52 @@
 pipeline {
-    agent any
+  agent any
 
-    environment {
-        SONAR_TOKEN = credentials('sonar-token-id')
-        MAVEN_HOME = tool 'Maven'
+  environment {
+    ARM_CLIENT_ID        = credentials('ARM_CLIENT_ID')
+    ARM_CLIENT_SECRET    = credentials('ARM_CLIENT_SECRET')
+    ARM_SUBSCRIPTION_ID  = credentials('ARM_SUBSCRIPTION_ID')
+    ARM_TENANT_ID        = credentials('ARM_TENANT_ID')
+  }
+
+  stages {
+    stage('Checkout Terraform Code') {
+      steps {
+        git url: 'https://your-repo-url.git', branch: 'main'
+      }
     }
 
-    stages {
-        stage('Checkout') {
-            steps {
-                git url: 'git@github.com:your-org/your-repo.git', branch: 'main'
-            }
-        }
-
-        stage('Code Quality - SonarQube') {
-            steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh "${MAVEN_HOME}/bin/mvn sonar:sonar -Dsonar.login=${SONAR_TOKEN}"
-                }
-            }
-        }
-
-        stage('Quality Gate') {
-            steps {
-                timeout(time: 2, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
-            }
-        }
-
-        stage('Build WAR') {
-            steps {
-                sh "${MAVEN_HOME}/bin/mvn clean package"
-            }
-        }
-
-        stage('Deploy to Tomcat') {
-            steps {
-                ansiblePlaybook(
-                    playbook: 'ansible/deploy.yml',
-                    inventory: 'ansible/hosts',
-                    credentialsId: 'ansible-ssh-key'
-                )
-            }
-        }
+    stage('Terraform Init') {
+      steps {
+        sh 'terraform init'
+      }
     }
+
+    stage('Terraform Validate') {
+      steps {
+        sh 'terraform validate'
+      }
+    }
+
+    stage('Terraform Plan') {
+      steps {
+        sh 'terraform plan -out=tfplan'
+      }
+    }
+
+    stage('Terraform Apply') {
+      steps {
+        input message: 'Approve deployment?'
+        sh 'terraform apply tfplan'
+      }
+    }
+  }
+
+  post {
+    success {
+      echo '✅ Budget alert deployed successfully!'
+    }
+    failure {
+      echo '❌ Deployment failed.'
+    }
+  }
 }
